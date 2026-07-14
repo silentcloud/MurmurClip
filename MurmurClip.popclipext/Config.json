@@ -1,8 +1,8 @@
 {
   "identifier": "men.helpall.murmurclip",
   "name": {
-    "en": "MurmurClip Translate",
-    "zh-hans": "MurmurClip 翻译助手"
+    "en": "MurmurClip",
+    "zh-hans": "MurmurClip"
   },
   "description": {
     "en": "Translate or correct selected text. Chinese to English translation, English grammar correction.",
