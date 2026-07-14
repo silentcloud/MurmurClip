@@ -1,0 +1,42 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'   # triggers on version tags like v1.0.0
+
+permissions:
+  contents: write  # needed to create GitHub Releases and upload assets
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Config.json
+        run: python3 -m json.tool MurmurClip.popclipext/Config.json > /dev/null
+
+      - name: Check Python syntax
+        run: python3 -m py_compile MurmurClip.popclipext/murmurclip.py && echo "Syntax OK"
+
+      - name: Build .popclipextz
+        run: |
+          zip -r MurmurClip.popclipextz MurmurClip.popclipext/ \
+            --exclude "*/__pycache__/*" \
+            --exclude "*/.DS_Store"
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "MurmurClip ${{ steps.version.outputs.VERSION }}"
+          body_path: CHANGELOG.md
+          files: MurmurClip.popclipextz
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
