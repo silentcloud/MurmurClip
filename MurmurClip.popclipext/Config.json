@@ -86,5 +86,5 @@
   ],
   "requirements": ["text", "paste"],
   "after": "paste-result",
-  "javascriptFile": "translate.js"
+  "javascriptFile": "murmurclip.js"
 }
