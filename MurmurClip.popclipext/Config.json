@@ -8,6 +8,9 @@
 
   "options": [
     {
+      "identifier": "generalHeading", "type": "heading", "label": "General"
+    },
+    {
       "identifier": "mode", "type": "multiple", "label": "Action Mode", "defaultValue": "auto",
       "values": ["auto", "translate", "polish"],
       "value labels": ["Auto (translate or polish)", "Always translate", "Always polish grammar"]
@@ -23,35 +26,39 @@
       "value labels": ["English", "Chinese", "Japanese", "Korean", "French", "German", "Spanish"]
     },
     {
+      "identifier": "resultAction", "type": "multiple", "label": "After Action", "defaultValue": "paste",
+      "values": ["paste", "copy", "preview"],
+      "value labels": ["Paste (replace selection)", "Copy to clipboard", "Preview result"]
+    },
+    {
       "identifier": "service", "type": "multiple", "label": "Translation Service", "defaultValue": "ai",
       "values": ["macos", "ai"],
       "value labels": ["macOS Translation (requires macOS 15+)", "AI Service"]
     },
     {
-      "identifier": "aiProvider", "type": "multiple", "label": "AI Provider", "defaultValue": "openai",
+      "identifier": "aiHeading", "type": "heading", "label": "AI Service"
+    },
+    {
+      "identifier": "aiProvider", "type": "multiple", "label": "Provider", "defaultValue": "openai",
       "values": ["openai", "anthropic", "ollama", "custom"],
-      "value labels": ["OpenAI", "Anthropic (Claude)", "Ollama (local)", "Custom (OpenAI-compatible)"]
+      "value labels": ["OpenAI", "Anthropic (Claude)", "Ollama (local)", "Custom (OpenAI-compatible)"],
+      "description": "Only used when Translation Service is set to AI Service."
     },
     {
-      "identifier": "aiBaseURL", "type": "string", "label": "AI Base URL", "defaultValue": "",
-      "description": "Leave empty for provider default. Ollama default: http://localhost:11434"
+      "identifier": "aiApiKey", "type": "secret", "label": "API Key",
+      "description": "Only used when Translation Service is set to AI Service. Stored in Keychain. Not needed for Ollama."
     },
     {
-      "identifier": "aiModel", "type": "string", "label": "AI Model", "defaultValue": "",
-      "description": "e.g. gpt-4o-mini, claude-3-5-sonnet-20241022, llama3.1"
+      "identifier": "aiModel", "type": "string", "label": "Model", "defaultValue": "",
+      "description": "Only used when Translation Service is set to AI Service. e.g. gpt-4o-mini, claude-3-5-sonnet-20241022, llama3.1. Leave empty for provider default."
     },
     {
-      "identifier": "aiApiKey", "type": "secret", "label": "AI API Key",
-      "description": "API key. Stored in Keychain. Not needed for Ollama."
+      "identifier": "aiBaseURL", "type": "string", "label": "Base URL", "defaultValue": "",
+      "description": "Only used when Translation Service is set to AI Service. Leave empty for provider default. Ollama default: http://localhost:11434"
     },
     {
-      "identifier": "aiPrompt", "type": "string", "label": "Custom System Prompt (optional)", "defaultValue": "",
-      "description": "Override the built-in prompt. Use {mode}, {source}, {target} as placeholders."
-    },
-    {
-      "identifier": "resultAction", "type": "multiple", "label": "After Action", "defaultValue": "paste",
-      "values": ["paste", "copy", "preview"],
-      "value labels": ["Paste (replace selection)", "Copy to clipboard", "Preview result"]
+      "identifier": "aiPrompt", "type": "string", "label": "Custom System Prompt", "defaultValue": "",
+      "description": "Only used when Translation Service is set to AI Service. Optional. Use {mode}, {source}, {target} as placeholders to override the built-in prompt."
     }
   ],
 
