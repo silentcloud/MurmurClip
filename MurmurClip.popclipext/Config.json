@@ -3,43 +3,56 @@
   "name": "MurmurClip",
   "icon": "symbol:character.book.closed",
   "popclipVersion": 4050,
-  "description": "Translate / polish selected text. Auto-detects Chinese and English. Supports macOS Translation and AI services (OpenAI-compatible / Anthropic / Ollama).",
+  "entitlements": ["network"],
+  "description": "Translate or polish selected text. Auto-detects Chinese and English. Supports macOS Translation and AI services (OpenAI-compatible, Anthropic, Ollama).",
 
   "options": [
-    { "identifier": "mode", "type": "multiple", "label": "Action Mode", "defaultValue": "auto",
+    {
+      "identifier": "mode", "type": "multiple", "label": "Action Mode", "defaultValue": "auto",
       "values": ["auto", "translate", "polish"],
-      "value labels": ["Auto (translate or polish)", "Always translate", "Always polish grammar"] },
-
-    { "identifier": "sourceLang", "type": "multiple", "label": "Source Language", "defaultValue": "auto",
+      "value labels": ["Auto (translate or polish)", "Always translate", "Always polish grammar"]
+    },
+    {
+      "identifier": "sourceLang", "type": "multiple", "label": "Source Language", "defaultValue": "auto",
       "values": ["auto", "zh", "en", "ja", "ko", "fr", "de", "es"],
-      "value labels": ["Auto detect", "Chinese", "English", "Japanese", "Korean", "French", "German", "Spanish"] },
-
-    { "identifier": "targetLang", "type": "multiple", "label": "Target Language", "defaultValue": "en",
+      "value labels": ["Auto detect", "Chinese", "English", "Japanese", "Korean", "French", "German", "Spanish"]
+    },
+    {
+      "identifier": "targetLang", "type": "multiple", "label": "Target Language", "defaultValue": "en",
       "values": ["en", "zh", "ja", "ko", "fr", "de", "es"],
-      "value labels": ["English", "Chinese", "Japanese", "Korean", "French", "German", "Spanish"] },
-
-    { "identifier": "service", "type": "multiple", "label": "Translation Service", "defaultValue": "macos",
+      "value labels": ["English", "Chinese", "Japanese", "Korean", "French", "German", "Spanish"]
+    },
+    {
+      "identifier": "service", "type": "multiple", "label": "Translation Service", "defaultValue": "ai",
       "values": ["macos", "ai"],
-      "value labels": ["macOS Translation", "AI Service"] },
-
-    { "identifier": "aiProvider", "type": "multiple", "label": "AI Provider", "defaultValue": "openai",
+      "value labels": ["macOS Translation (requires macOS 15+)", "AI Service"]
+    },
+    {
+      "identifier": "aiProvider", "type": "multiple", "label": "AI Provider", "defaultValue": "openai",
       "values": ["openai", "anthropic", "ollama", "custom"],
-      "value labels": ["OpenAI", "Anthropic (Claude)", "Ollama (local)", "Custom (OpenAI-compatible)"] },
-
-    { "identifier": "aiBaseURL", "type": "string", "label": "AI Base URL", "defaultValue": "",
-      "description": "API base URL. Leave empty for provider default. For Ollama use http://localhost:11434" },
-
-    { "identifier": "aiModel", "type": "string", "label": "AI Model", "defaultValue": "",
-      "description": "Model name, e.g. gpt-4o-mini, claude-3-5-sonnet-20241022, llama3.1" },
-
-    { "identifier": "aiApiKey", "type": "secret", "label": "AI API Key", "description": "API key for the AI service. Not needed for local Ollama." },
-
-    { "identifier": "aiPrompt", "type": "string", "label": "Custom System Prompt (optional)", "defaultValue": "",
-      "description": "Override the built-in prompt. Use {mode}, {source}, {target} as placeholders." },
-
-    { "identifier": "resultAction", "type": "multiple", "label": "After Action", "defaultValue": "paste",
+      "value labels": ["OpenAI", "Anthropic (Claude)", "Ollama (local)", "Custom (OpenAI-compatible)"]
+    },
+    {
+      "identifier": "aiBaseURL", "type": "string", "label": "AI Base URL", "defaultValue": "",
+      "description": "Leave empty for provider default. Ollama default: http://localhost:11434"
+    },
+    {
+      "identifier": "aiModel", "type": "string", "label": "AI Model", "defaultValue": "",
+      "description": "e.g. gpt-4o-mini, claude-3-5-sonnet-20241022, llama3.1"
+    },
+    {
+      "identifier": "aiApiKey", "type": "secret", "label": "AI API Key",
+      "description": "API key. Stored in Keychain. Not needed for Ollama."
+    },
+    {
+      "identifier": "aiPrompt", "type": "string", "label": "Custom System Prompt (optional)", "defaultValue": "",
+      "description": "Override the built-in prompt. Use {mode}, {source}, {target} as placeholders."
+    },
+    {
+      "identifier": "resultAction", "type": "multiple", "label": "After Action", "defaultValue": "paste",
       "values": ["paste", "copy", "preview"],
-      "value labels": ["Paste (replace selection)", "Copy to clipboard", "Preview result"] }
+      "value labels": ["Paste (replace selection)", "Copy to clipboard", "Preview result"]
+    }
   ],
 
   "actions": [
@@ -47,24 +60,21 @@
       "title": "MurmurClip",
       "icon": "symbol:character.book.closed",
       "requirements": ["text", "option-resultAction=paste"],
-      "shell script file": "murmurclip.py",
-      "interpreter": "/usr/bin/env python3",
+      "javascript file": "murmurclip.js",
       "after": "paste-result"
     },
     {
       "title": "MurmurClip",
       "icon": "symbol:character.book.closed",
       "requirements": ["text", "option-resultAction=copy"],
-      "shell script file": "murmurclip.py",
-      "interpreter": "/usr/bin/env python3",
+      "javascript file": "murmurclip.js",
       "after": "copy-result"
     },
     {
       "title": "MurmurClip",
       "icon": "symbol:character.book.closed",
       "requirements": ["text", "option-resultAction=preview"],
-      "shell script file": "murmurclip.py",
-      "interpreter": "/usr/bin/env python3",
+      "javascript file": "murmurclip.js",
       "after": "preview-result"
     }
   ]

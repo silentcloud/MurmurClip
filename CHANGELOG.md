@@ -3,6 +3,16 @@
 All notable changes to MurmurClip are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-07-14
+
+### Changed
+- Rewrote core script from Python to JavaScript (eliminates Python environment dependency)
+- Uses PopClip's built-in JS engine + bundled `axios` library — zero external dependencies
+- Default service changed from macOS Translation to AI Service (broader compatibility)
+- macOS Translation now shows a clear settings error (JS environment cannot invoke Swift directly)
+- Ollama over `http://` now shows a clear settings error (blocked by App Transport Security);
+  HTTPS Ollama endpoints still work via the Custom provider
+
 ## [1.0.0] - 2026-07-14
 
 ### Added
