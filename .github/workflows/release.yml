@@ -20,7 +20,16 @@ jobs:
         run: python3 -m json.tool MurmurClip.popclipext/Config.json > /dev/null
 
       - name: Check JS syntax
-        run: node --check MurmurClip.popclipext/murmurclip.js && echo "Syntax OK"
+        # Use AsyncFunction constructor to mirror PopClip's execution model
+        # (PopClip wraps the script in an async arrow function internally)
+        run: |
+          node -e "
+            const fs = require('fs');
+            const src = fs.readFileSync('MurmurClip.popclipext/murmurclip.js', 'utf8');
+            const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+            new AsyncFunction(src);
+            console.log('Syntax OK');
+          "
 
       - name: Build .popclipextz
         run: |
