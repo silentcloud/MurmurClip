@@ -1,88 +1,90 @@
 {
-  "identifier": "io.github.silentcloud.murmurclip",
-  "name": "MurmurClip",
+  "identifier": "men.helpall.murmurclip",
+  "name": {
+    "en": "MurmurClip Translate",
+    "zh-hans": "MurmurClip 翻译助手"
+  },
+  "description": {
+    "en": "Translate or correct selected text. Chinese to English translation, English grammar correction.",
+    "zh-hans": "翻译或纠正选中文本。中文翻译为英文口语，英文语法纠正与口语化优化。"
+  },
   "icon": "symbol:character.book.closed",
-  "popclipVersion": 4050,
+  "popclipVersion": 4151,
   "entitlements": ["network"],
-  "description": "Translate or polish selected text. Auto-detects Chinese and English. Supports macOS Translation and AI services (OpenAI-compatible, Anthropic, Ollama).",
-
   "options": [
     {
-      "identifier": "generalHeading", "type": "heading", "label": "General"
-    },
-    {
-      "identifier": "mode", "type": "multiple", "label": "Action Mode", "defaultValue": "auto",
-      "values": ["auto", "translate", "polish"],
-      "value labels": ["Auto (translate or polish)", "Always translate", "Always polish grammar"]
-    },
-    {
-      "identifier": "sourceLang", "type": "multiple", "label": "Source Language", "defaultValue": "auto",
+      "identifier": "sourceLanguage",
+      "type": "multiple",
+      "label": {
+        "en": "Source Language",
+        "zh-hans": "源语言"
+      },
       "values": ["auto", "zh", "en", "ja", "ko", "fr", "de", "es"],
-      "value labels": ["Auto detect", "Chinese", "English", "Japanese", "Korean", "French", "German", "Spanish"]
+      "valueLabels": ["Auto Detect", "Chinese", "English", "Japanese", "Korean", "French", "German", "Spanish"],
+      "defaultValue": "auto"
     },
     {
-      "identifier": "targetLang", "type": "multiple", "label": "Target Language", "defaultValue": "en",
+      "identifier": "targetLanguage",
+      "type": "multiple",
+      "label": {
+        "en": "Target Language",
+        "zh-hans": "目标语言"
+      },
       "values": ["en", "zh", "ja", "ko", "fr", "de", "es"],
-      "value labels": ["English", "Chinese", "Japanese", "Korean", "French", "German", "Spanish"]
+      "valueLabels": ["English", "Chinese", "Japanese", "Korean", "French", "German", "Spanish"],
+      "defaultValue": "en"
     },
     {
-      "identifier": "resultAction", "type": "multiple", "label": "After Action", "defaultValue": "paste",
-      "values": ["paste", "copy", "preview"],
-      "value labels": ["Paste (replace selection)", "Copy to clipboard", "Preview result"]
+      "identifier": "translationService",
+      "type": "multiple",
+      "label": {
+        "en": "Translation Service",
+        "zh-hans": "翻译服务"
+      },
+      "values": ["openai", "ollama", "anthropic"],
+      "valueLabels": ["OpenAI Compatible", "Ollama (Local)", "Anthropic Claude"],
+      "defaultValue": "openai"
     },
     {
-      "identifier": "service", "type": "multiple", "label": "Translation Service", "defaultValue": "ai",
-      "values": ["macos", "ai"],
-      "value labels": ["macOS Translation (requires macOS 15+)", "AI Service"]
+      "identifier": "apiKey",
+      "type": "secret",
+      "label": {
+        "en": "API Key",
+        "zh-hans": "API 密钥"
+      },
+      "description": {
+        "en": "Required for OpenAI / Anthropic services. Leave empty for Ollama.",
+        "zh-hans": "OpenAI / Anthropic 服务需要填写。Ollama 无需填写。"
+      }
     },
     {
-      "identifier": "aiHeading", "type": "heading", "label": "AI Service"
+      "identifier": "apiBaseUrl",
+      "type": "string",
+      "label": {
+        "en": "API Base URL",
+        "zh-hans": "API 地址"
+      },
+      "description": {
+        "en": "Custom API endpoint. Default: OpenAI=https://api.openai.com/v1, Ollama=http://localhost:11434/v1, Anthropic=https://api.anthropic.com/v1",
+        "zh-hans": "自定义 API 端点。默认：OpenAI=https://api.openai.com/v1，Ollama=http://localhost:11434/v1，Anthropic=https://api.anthropic.com/v1"
+      },
+      "defaultValue": ""
     },
     {
-      "identifier": "aiProvider", "type": "multiple", "label": "Provider", "defaultValue": "openai",
-      "values": ["openai", "anthropic", "ollama", "custom"],
-      "value labels": ["OpenAI", "Anthropic (Claude)", "Ollama (local)", "Custom (OpenAI-compatible)"],
-      "description": "Only used when Translation Service is set to AI Service."
-    },
-    {
-      "identifier": "aiApiKey", "type": "secret", "label": "API Key",
-      "description": "Only used when Translation Service is set to AI Service. Stored in Keychain. Not needed for Ollama."
-    },
-    {
-      "identifier": "aiModel", "type": "string", "label": "Model", "defaultValue": "",
-      "description": "Only used when Translation Service is set to AI Service. e.g. gpt-4o-mini, claude-3-5-sonnet-20241022, llama3.1. Leave empty for provider default."
-    },
-    {
-      "identifier": "aiBaseURL", "type": "string", "label": "Base URL", "defaultValue": "",
-      "description": "Only used when Translation Service is set to AI Service. Leave empty for provider default. Ollama default: http://localhost:11434"
-    },
-    {
-      "identifier": "aiPrompt", "type": "string", "label": "Custom System Prompt", "defaultValue": "",
-      "description": "Only used when Translation Service is set to AI Service. Optional. Use {mode}, {source}, {target} as placeholders to override the built-in prompt."
+      "identifier": "modelName",
+      "type": "string",
+      "label": {
+        "en": "Model Name",
+        "zh-hans": "模型名称"
+      },
+      "description": {
+        "en": "Model to use. e.g. gpt-4o-mini, llama3, claude-sonnet-4-20250514",
+        "zh-hans": "使用的模型名称。例如 gpt-4o-mini、llama3、claude-sonnet-4-20250514"
+      },
+      "defaultValue": "gpt-4o-mini"
     }
   ],
-
-  "actions": [
-    {
-      "title": "MurmurClip",
-      "icon": "symbol:character.book.closed",
-      "requirements": ["text", "option-resultAction=paste"],
-      "javascript file": "murmurclip.js",
-      "after": "paste-result"
-    },
-    {
-      "title": "MurmurClip",
-      "icon": "symbol:character.book.closed",
-      "requirements": ["text", "option-resultAction=copy"],
-      "javascript file": "murmurclip.js",
-      "after": "copy-result"
-    },
-    {
-      "title": "MurmurClip",
-      "icon": "symbol:character.book.closed",
-      "requirements": ["text", "option-resultAction=preview"],
-      "javascript file": "murmurclip.js",
-      "after": "preview-result"
-    }
-  ]
+  "requirements": ["text", "paste"],
+  "after": "paste-result",
+  "javascriptFile": "translate.js"
 }
