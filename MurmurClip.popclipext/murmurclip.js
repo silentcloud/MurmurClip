@@ -2,8 +2,6 @@
 // Translates or polishes selected text using macOS Translation or an AI service.
 // Supports: OpenAI, Anthropic, Ollama (via shell), custom OpenAI-compatible endpoints.
 
-"use strict";
-
 const axios = require("axios");
 
 // ---------------------------------------------------------------------------
@@ -105,12 +103,7 @@ async function translateMacOS(text, sourceLang, targetLang) {
   // Use AppleScript to run shell command (avoids Python dependency)
   const appleScript = `do shell script "echo \\"${escaped}\\" > /tmp/_mc_translate.swift && swift /tmp/_mc_translate.swift '${escapedText}' ${sourceLang} ${targetLang}"`;
 
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    // PopClip doesn't support running AppleScript directly from JS actions,
-    // so macOS Translation falls back to a clear error message.
-    reject(new Error("Settings error: macOS Translation requires running Swift — please switch to AI Service in MurmurClip settings."));
-  });
+  throw new Error("macOS Translation is not supported in the JS environment. Please switch to AI Service in MurmurClip settings.");
 }
 
 // ---------------------------------------------------------------------------
@@ -142,7 +135,7 @@ async function callOpenAICompatible(baseURL, apiKey, model, systemPrompt, userTe
 // ---------------------------------------------------------------------------
 
 async function callAnthropic(baseURL, apiKey, model, systemPrompt, userText) {
-  if (!apiKey) throw new Error("Settings error: Anthropic API key required.");
+  if (!apiKey) throw new Error("Anthropic API key is not set. Please open MurmurClip settings and enter your API key.");
 
   const response = await axios.post(
     `${baseURL.replace(/\/$/, "")}/messages`,
@@ -184,11 +177,8 @@ async function callOllama(baseURL, model, systemPrompt, userText) {
   const url = baseURL || PROVIDER_DEFAULTS.ollama.baseURL;
   if (url.startsWith("http://")) {
     throw new Error(
-      "Settings error: Ollama uses http:// which is blocked by macOS App Transport Security in PopClip's JS environment. " +
-      "Options:\n" +
-      "1. Use a reverse proxy with HTTPS (e.g. nginx + self-signed cert).\n" +
-      "2. Set AI Provider to 'Custom' and point to an HTTPS Ollama endpoint.\n" +
-      "3. Use OpenAI or Anthropic instead."
+      "Ollama's http:// is blocked by App Transport Security. " +
+      "Use an HTTPS endpoint, or set Provider to Custom with an HTTPS Ollama proxy URL."
     );
   }
   // If user has set an https Ollama URL, treat as OpenAI-compatible
