@@ -19,13 +19,12 @@ jobs:
       - name: Validate Config.json
         run: python3 -m json.tool MurmurClip.popclipext/Config.json > /dev/null
 
-      - name: Check Python syntax
-        run: python3 -m py_compile MurmurClip.popclipext/murmurclip.py && echo "Syntax OK"
+      - name: Check JS syntax
+        run: node --check MurmurClip.popclipext/murmurclip.js && echo "Syntax OK"
 
       - name: Build .popclipextz
         run: |
           zip -r MurmurClip.popclipextz MurmurClip.popclipext/ \
-            --exclude "*/__pycache__/*" \
             --exclude "*/.DS_Store"
 
       - name: Extract version from tag
