@@ -1,232 +1,180 @@
-// MurmurClip — PopClip extension
-// Translates or polishes selected text using macOS Translation or an AI service.
-// Supports: OpenAI, Anthropic, Ollama (via shell), custom OpenAI-compatible endpoints.
+// Murmur Translate - PopClip Extension
+// Translates or corrects selected text using AI services (OpenAI / Ollama / Anthropic)
 
-const axios = require("axios");
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const LANG_NAMES = {
-  zh: "Chinese", en: "English", ja: "Japanese",
-  ko: "Korean",  fr: "French",  de: "German", es: "Spanish",
+const LANGUAGE_NAMES = {
+  zh: "Chinese",
+  en: "English",
+  ja: "Japanese",
+  ko: "Korean",
+  fr: "French",
+  de: "German",
+  es: "Spanish",
 };
 
-const PROVIDER_DEFAULTS = {
-  openai:    { baseURL: "https://api.openai.com/v1",    model: "gpt-4o-mini" },
-  anthropic: { baseURL: "https://api.anthropic.com/v1", model: "claude-3-5-sonnet-20241022" },
-  ollama:    { baseURL: "http://localhost:11434",        model: "llama3.1" },
-  custom:    { baseURL: "",                              model: "" },
-};
-
-// ---------------------------------------------------------------------------
-// Language detection
-// ---------------------------------------------------------------------------
-
+/**
+ * Detect whether text is primarily Chinese or English
+ */
 function detectLanguage(text) {
-  let cjk = 0, ascii = 0;
-  for (const c of text) {
-    const cp = c.codePointAt(0);
-    if (cp >= 0x4e00 && cp <= 0x9fff) cjk++;
-    else if ((cp >= 65 && cp <= 90) || (cp >= 97 && cp <= 122)) ascii++;
-  }
-  const total = cjk + ascii;
-  if (total === 0) return "en";
-  return cjk / total > 0.3 ? "zh" : "en";
+  const chineseCharCount = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+  const totalAlphaCount = (text.replace(/\s/g, "").length) || 1;
+  return chineseCharCount / totalAlphaCount > 0.3 ? "zh" : "en";
 }
 
-// ---------------------------------------------------------------------------
-// Prompt builder
-// ---------------------------------------------------------------------------
+/**
+ * Build the prompt based on source/target language and task type
+ */
+function buildPrompt(sourceLang, targetLang, text) {
+  const isSameLanguage = sourceLang === targetLang;
+  const sourceName = LANGUAGE_NAMES[sourceLang] || sourceLang;
+  const targetName = LANGUAGE_NAMES[targetLang] || targetLang;
 
-function buildPrompt(mode, sourceLang, targetLang, customPrompt) {
-  const srcName = sourceLang !== "auto" ? (LANG_NAMES[sourceLang] || sourceLang) : "the source language";
-  const tgtName = LANG_NAMES[targetLang] || targetLang;
-
-  if (customPrompt) {
-    return customPrompt
-      .replace("{mode}", mode)
-      .replace("{source}", srcName)
-      .replace("{target}", tgtName);
+  if (isSameLanguage && sourceLang === "en") {
+    return "You are a native English editor. Correct the grammar and rephrase the following text into natural, conversational English. Keep the original meaning. Output ONLY the corrected text, nothing else.\n\nText: " + text;
   }
 
-  if (mode === "polish") {
-    return `You are a language expert. Polish and correct the following ${srcName} text. ` +
-           `Fix grammar, spelling, and punctuation. Make it sound natural and idiomatic ` +
-           `like a native speaker. Keep the original meaning. ` +
-           `Output ONLY the corrected text — no explanations.`;
+  if (isSameLanguage && sourceLang === "zh") {
+    return "你是一位中文母语编辑。请纠正以下文本的语法，并将其改写为自然、口语化的中文表达。保持原意不变。只输出修改后的文本，不要任何额外内容。\n\n文本：" + text;
   }
 
-  if (mode === "translate") {
-    return `You are a professional translator. Translate the following text ` +
-           `from ${srcName} to ${tgtName}. ` +
-           `Use natural, idiomatic ${tgtName} as a native speaker would in everyday conversation. ` +
-           `Output ONLY the translation — no explanations, no notes.`;
-  }
-
-  // auto
-  return `You are a language assistant. Examine the input:\n` +
-         `- If it is already in ${tgtName}: polish it — fix grammar, spelling, and style ` +
-         `to sound like a native ${tgtName} speaker.\n` +
-         `- If it is NOT in ${tgtName}: translate it into natural, conversational ${tgtName}.\n` +
-         `Output ONLY the result — no explanations.`;
+  return "You are a professional translator. Translate the following " + sourceName + " text into natural, conversational " + targetName + ". Keep the original meaning and tone. Output ONLY the translated text, nothing else.\n\nText: " + text;
 }
 
-// ---------------------------------------------------------------------------
-// macOS Translation (requires macOS 15+, uses shell script via AppleScript)
-// ---------------------------------------------------------------------------
-
-async function translateMacOS(text, sourceLang, targetLang) {
-  // macOS Translation framework is not accessible from JS directly.
-  // We invoke it via a short Swift one-liner through the shell.
-  const script = `
-    import Foundation
-    import Translation
-
-    let text = CommandLine.arguments[1]
-    let src  = CommandLine.arguments[2]
-    let tgt  = CommandLine.arguments[3]
-    let cfg  = TranslationSession.Configuration(
-      source: Locale.Language(identifier: src),
-      target: Locale.Language(identifier: tgt)
-    )
-    let session = try! TranslationSession(configuration: cfg)
-    let resp    = try! await session.translate(text)
-    print(resp.targetText, terminator: "")
-  `.trim();
-
-  // Write to temp file and run via osascript shell
-  const escaped = script.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
-  const escapedText = text.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/'/g, "'\\''");
-
-  // Use AppleScript to run shell command (avoids Python dependency)
-  const appleScript = `do shell script "echo \\"${escaped}\\" > /tmp/_mc_translate.swift && swift /tmp/_mc_translate.swift '${escapedText}' ${sourceLang} ${targetLang}"`;
-
-  throw new Error("macOS Translation is not supported in the JS environment. Please switch to AI Service in MurmurClip settings.");
-}
-
-// ---------------------------------------------------------------------------
-// OpenAI-compatible (OpenAI / custom)
-// ---------------------------------------------------------------------------
-
-async function callOpenAICompatible(baseURL, apiKey, model, systemPrompt, userText) {
-  const headers = { "Content-Type": "application/json" };
-  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-
-  const response = await axios.post(
-    `${baseURL.replace(/\/$/, "")}/chat/completions`,
-    {
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user",   content: userText },
-      ],
-      temperature: 0.3,
-    },
-    { headers, timeout: 60000 }
-  );
-
-  return response.data.choices[0].message.content.trim();
-}
-
-// ---------------------------------------------------------------------------
-// Anthropic
-// ---------------------------------------------------------------------------
-
-async function callAnthropic(baseURL, apiKey, model, systemPrompt, userText) {
-  if (!apiKey) throw new Error("Anthropic API key is not set. Please open MurmurClip settings and enter your API key.");
-
-  const response = await axios.post(
-    `${baseURL.replace(/\/$/, "")}/messages`,
-    {
-      model,
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userText }],
-    },
-    {
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      timeout: 60000,
+/**
+ * HTTP POST using XMLHttpRequest (compatible with PopClip JS environment)
+ */
+function httpPost(url, headers, body) {
+  return new Promise(function (resolve, reject) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", url, true);
+    for (var key in headers) {
+      if (headers.hasOwnProperty(key)) {
+        xhr.setRequestHeader(key, headers[key]);
+      }
     }
+    xhr.onload = function () {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(xhr.responseText);
+      } else {
+        reject(new Error("HTTP " + xhr.status + ": " + xhr.responseText));
+      }
+    };
+    xhr.onerror = function () {
+      reject(new Error("Network error connecting to " + url));
+    };
+    xhr.send(body);
+  });
+}
+
+/**
+ * Call OpenAI-compatible API (works for OpenAI, Ollama, and other compatible services)
+ */
+async function translateWithOpenAICompatible(text, sourceLang, targetLang, apiKey, baseUrl, model) {
+  var prompt = buildPrompt(sourceLang, targetLang, text);
+  var headers = { "Content-Type": "application/json" };
+  if (apiKey) {
+    headers["Authorization"] = "Bearer " + apiKey;
+  }
+
+  var responseBody = await httpPost(
+    baseUrl + "/chat/completions",
+    headers,
+    JSON.stringify({
+      model: model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      max_tokens: 2048,
+    })
   );
 
-  return response.data.content
-    .filter(b => b.type === "text")
-    .map(b => b.text)
-    .join("")
-    .trim();
+  var data = JSON.parse(responseBody);
+  var result = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  return (result || "").trim();
 }
 
-// ---------------------------------------------------------------------------
-// Ollama  (http:// — must go via shell since PopClip JS blocks http)
-// ---------------------------------------------------------------------------
+/**
+ * Call Anthropic Claude API
+ */
+async function translateWithAnthropic(text, sourceLang, targetLang, apiKey, baseUrl, model) {
+  var prompt = buildPrompt(sourceLang, targetLang, text);
 
-async function callOllama(baseURL, model, systemPrompt, userText) {
-  // PopClip's JS engine blocks http:// requests (App Transport Security).
-  // We fall back to a shell command via NSTask through a known workaround:
-  // throw a settings error directing the user to use a reverse proxy or
-  // an HTTPS-capable custom endpoint instead.
-  // If the user has configured a custom https Ollama proxy, it will work
-  // via the "custom" provider path.  For plain http://localhost we provide
-  // a clear message.
-  const url = baseURL || PROVIDER_DEFAULTS.ollama.baseURL;
-  if (url.startsWith("http://")) {
-    throw new Error(
-      "Ollama's http:// is blocked by App Transport Security. " +
-      "Use an HTTPS endpoint, or set Provider to Custom with an HTTPS Ollama proxy URL."
-    );
+  var responseBody = await httpPost(
+    baseUrl + "/messages",
+    {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    JSON.stringify({
+      model: model,
+      max_tokens: 2048,
+      messages: [{ role: "user", content: prompt }],
+    })
+  );
+
+  var data = JSON.parse(responseBody);
+  var result = data.content && data.content[0] && data.content[0].text;
+  return (result || "").trim();
+}
+
+/**
+ * Get the default base URL for each service
+ */
+function getDefaultBaseUrl(service) {
+  if (service === "openai") return "https://api.openai.com/v1";
+  if (service === "ollama") return "http://localhost:11434/v1";
+  if (service === "anthropic") return "https://api.anthropic.com/v1";
+  return "";
+}
+
+/**
+ * Main entry point
+ */
+async function main() {
+  var text = popclip.input.text.trim();
+  if (!text) {
+    popclip.showText("No text selected");
+    return;
   }
-  // If user has set an https Ollama URL, treat as OpenAI-compatible
-  return callOpenAICompatible(url, "", model, systemPrompt, userText);
+
+  var options = popclip.options;
+  var service = options.translationService || "openai";
+  var sourceLang = options.sourceLanguage || "auto";
+  var targetLang = options.targetLanguage || "en";
+
+  // Auto-detect source language if set to auto
+  if (sourceLang === "auto") {
+    sourceLang = detectLanguage(text);
+  }
+
+  try {
+    var result;
+
+    if (service === "openai" || service === "ollama") {
+      var baseUrl = options.apiBaseUrl || getDefaultBaseUrl(service);
+      var apiKey = options.apiKey || "";
+      var model = options.modelName || (service === "ollama" ? "llama3" : "gpt-4o-mini");
+      result = await translateWithOpenAICompatible(text, sourceLang, targetLang, apiKey, baseUrl, model);
+    } else if (service === "anthropic") {
+      var anthropicBaseUrl = options.apiBaseUrl || getDefaultBaseUrl("anthropic");
+      var anthropicApiKey = options.apiKey;
+      if (!anthropicApiKey) {
+        throw new Error("API Key is required for Anthropic. Please configure it in extension settings.");
+      }
+      var anthropicModel = options.modelName || "claude-sonnet-4-20250514";
+      result = await translateWithAnthropic(text, sourceLang, targetLang, anthropicApiKey, anthropicBaseUrl, anthropicModel);
+    } else {
+      throw new Error("Unknown translation service: " + service);
+    }
+
+    if (!result) {
+      throw new Error("Translation returned empty result");
+    }
+
+    return result;
+  } catch (error) {
+    popclip.showText("❌ " + error.message);
+    return null;
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Main entry point
-// ---------------------------------------------------------------------------
-
-const text    = popclip.input.text;
-const opts    = popclip.options;
-
-let mode        = opts.mode        || "auto";
-let sourceLang  = opts.sourceLang  || "auto";
-const targetLang  = opts.targetLang  || "en";
-const service     = opts.service     || "ai";
-const provider    = opts.aiProvider  || "openai";
-const customPrompt = opts.aiPrompt   || "";
-
-// Resolve source language
-if (sourceLang === "auto") sourceLang = detectLanguage(text);
-
-// Resolve auto mode
-if (mode === "auto") mode = (sourceLang === targetLang) ? "polish" : "translate";
-
-// macOS Translation path
-if (service === "macos") {
-  const result = await translateMacOS(text, sourceLang, targetLang);
-  return result;
-}
-
-// AI path
-const defaults  = PROVIDER_DEFAULTS[provider] || PROVIDER_DEFAULTS.custom;
-const baseURL   = (opts.aiBaseURL || "").trim() || defaults.baseURL;
-const model     = (opts.aiModel   || "").trim() || defaults.model;
-const apiKey    = (opts.aiApiKey  || "").trim();
-
-const systemPrompt = buildPrompt(mode, sourceLang, targetLang, customPrompt);
-
-let result;
-if (provider === "anthropic") {
-  result = await callAnthropic(baseURL, apiKey, model, systemPrompt, text);
-} else if (provider === "ollama") {
-  result = await callOllama(baseURL, model, systemPrompt, text);
-} else {
-  // openai or custom
-  result = await callOpenAICompatible(baseURL, apiKey, model, systemPrompt, text);
-}
-
-return result;
+return main();
